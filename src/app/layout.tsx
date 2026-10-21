@@ -3,6 +3,7 @@ import { Space_Grotesk, Syne, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import ServiceWorker from "@/components/ServiceWorker";
+import SyncManager from "@/components/SyncManager";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
           <div className="max-w-5xl mx-auto px-4 sm:px-6">{children}</div>
         </main>
         <ServiceWorker />
+        <SyncManager />
       </body>
     </html>
   );

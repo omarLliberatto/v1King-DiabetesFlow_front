@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import GlucoseLogger from '@/components/GlucoseLogger';
 import GlucoseHistory from '@/components/GlucoseHistory';
+import { SYNCED_EVENT } from '@/lib/db';
 import { getGlucoseLogs, type GlucoseLog } from '@/services/api';
 
 export default function GlucosePage() {
@@ -17,7 +18,12 @@ export default function GlucosePage() {
   };
 
   useEffect(() => {
+    const reload = () => {
+      getGlucoseLogs().then(setLogs).catch(() => setLogs([]));
+    };
     getGlucoseLogs().then(setLogs).catch(() => setLogs([]));
+    window.addEventListener(SYNCED_EVENT, reload);
+    return () => window.removeEventListener(SYNCED_EVENT, reload);
   }, []);
 
   return (

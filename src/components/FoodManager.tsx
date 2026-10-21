@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SYNCED_EVENT } from "@/lib/db";
 import { createFood, deleteFood, getFoods, getMeals, type Food, type Meal } from "@/services/api";
 
 const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -22,10 +23,15 @@ export default function FoodManager() {
   };
 
   useEffect(() => {
-    Promise.all([getFoods(), getMeals()]).then(([f, m]) => {
-      setFoods(f);
-      setMeals(m);
-    });
+    const reload = () => {
+      Promise.all([getFoods(), getMeals()]).then(([f, m]) => {
+        setFoods(f);
+        setMeals(m);
+      });
+    };
+    reload();
+    window.addEventListener(SYNCED_EVENT, reload);
+    return () => window.removeEventListener(SYNCED_EVENT, reload);
   }, []);
 
   const visible = useMemo(() => {

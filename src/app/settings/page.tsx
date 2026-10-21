@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BolusParams } from "@/lib/bolus";
+import SyncPanel from "@/components/SyncPanel";
+import { SYNCED_EVENT } from "@/lib/db";
 import { exportBackup, getSettings, importBackup, saveSettings } from "@/services/api";
 
 const FIELDS: { key: keyof BolusParams; label: string; unit: string; help: string; step: string }[] = [
@@ -28,6 +30,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     load();
+    window.addEventListener(SYNCED_EVENT, load);
+    return () => window.removeEventListener(SYNCED_EVENT, load);
   }, []);
 
   const valid = FIELDS.every((f) => Number(form[f.key]) > 0);
@@ -110,6 +114,8 @@ export default function SettingsPage() {
         </div>
         <button type="submit" className="btn self-start" disabled={!valid}>Guardar parámetros</button>
       </form>
+
+      <SyncPanel />
 
       <section className="panel flex flex-col gap-4">
         <h2 className="eyebrow">Respaldo</h2>

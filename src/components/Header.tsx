@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { SYNCED_EVENT } from "@/lib/db";
 import { getGlucoseLogs, getLastInsulin, type GlucoseLog, type InsulinLog } from "@/services/api";
 
 const LINKS = [
@@ -30,8 +31,14 @@ export function StatusStrip() {
   const [insulin, setInsulin] = useState<InsulinLog>();
 
   useEffect(() => {
+    const load = () => {
+      getGlucoseLogs().then((l) => setGlucose(l[0]));
+      getLastInsulin().then(setInsulin);
+    };
     getGlucoseLogs().then((l) => setGlucose(l[0]));
     getLastInsulin().then(setInsulin);
+    window.addEventListener(SYNCED_EVENT, load);
+    return () => window.removeEventListener(SYNCED_EVENT, load);
   }, [pathname]);
 
   return (

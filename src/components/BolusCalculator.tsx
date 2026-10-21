@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculateBolus, type BolusParams } from "@/lib/bolus";
 import PlateBuilder from "@/components/PlateBuilder";
+import { SYNCED_EVENT } from "@/lib/db";
 import {
   createGlucoseLog,
   createInsulinLog,
   createMeal,
   getLastInsulin,
   getSettings,
+  type InsulinLog,
   type MealItem,
 } from "@/services/api";
 
@@ -57,12 +59,19 @@ export default function BolusCalculator() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    getSettings().then(setParams);
-    getLastInsulin().then((last) => {
+    const fillLast = (last: InsulinLog | undefined) => {
       if (!last) return;
       setLastDose(String(last.units));
       setHours(((Date.now() - new Date(last.timestamp).getTime()) / 3_600_000).toFixed(1));
-    });
+    };
+    const reload = () => {
+      getSettings().then(setParams);
+      getLastInsulin().then(fillLast);
+    };
+    getSettings().then(setParams);
+    getLastInsulin().then(fillLast);
+    window.addEventListener(SYNCED_EVENT, reload);
+    return () => window.removeEventListener(SYNCED_EVENT, reload);
   }, []);
 
   const result = useMemo(
