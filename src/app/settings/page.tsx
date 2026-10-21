@@ -1,158 +1,129 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { fetchSettings, saveSettings } from '@/services/settings.service';
+"use client";
 
-export default function ConfigurationPage() {
-  const [insulinSensitivity, setInsulinSensitivity] = useState(50);
-  const [carbRatio, setCarbRatio] = useState(15);
-  const [targetGlucose, setTargetGlucose] = useState(100);
-  const [isLoading, setIsLoading] = useState(true);
+import { useEffect, useRef, useState } from "react";
+import type { BolusParams } from "@/lib/bolus";
+import { exportBackup, getSettings, importBackup, saveSettings } from "@/services/api";
+
+const FIELDS: { key: keyof BolusParams; label: string; unit: string; help: string; step: string }[] = [
+  { key: "threshold", label: "Corregir desde", unit: "mg/dL", help: "Por debajo de este valor no se suma corrección.", step: "5" },
+  { key: "target", label: "Objetivo", unit: "mg/dL", help: "Valor al que lleva la corrección.", step: "5" },
+  { key: "isf", label: "FSI", unit: "mg/dL por U", help: "Cuánto baja la glucemia una unidad de insulina rápida.", step: "0.5" },
+  { key: "icr", label: "ICR", unit: "g HC por U", help: "Gramos de hidratos que cubre una unidad.", step: "0.1" },
+  { key: "duration", label: "Duración", unit: "horas", help: "Tiempo de acción de la insulina rápida, para la IOB.", step: "0.5" },
+];
+
+type Form = Record<keyof BolusParams, string>;
+
+const EMPTY: Form = { threshold: "", target: "", isf: "", icr: "", duration: "" };
+
+export default function SettingsPage() {
+  const [form, setForm] = useState<Form>(EMPTY);
+  const [status, setStatus] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const load = () =>
+    getSettings().then((s) => {
+      if (s) setForm({ threshold: String(s.threshold), target: String(s.target), isf: String(s.isf), icr: String(s.icr), duration: String(s.duration) });
+    });
 
   useEffect(() => {
-    fetchSettings('user-1')
-      .then((data) => {
-        if (data) {
-          if (data.insulinSensitivity !== undefined) setInsulinSensitivity(data.insulinSensitivity);
-          if (data.carbRatio !== undefined) setCarbRatio(data.carbRatio);
-          if (data.targetGlucose !== undefined) setTargetGlucose(data.targetGlucose);
-        }
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoading(false));
+    load();
   }, []);
+
+  const valid = FIELDS.every((f) => Number(form[f.key]) > 0);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!valid) return;
+    await saveSettings({
+      threshold: Number(form.threshold),
+      target: Number(form.target),
+      isf: Number(form.isf),
+      icr: Number(form.icr),
+      duration: Number(form.duration),
+    });
+    setStatus("Parámetros guardados.");
+  };
+
+  const handleExport = async () => {
+    const blob = await exportBackup();
+    const file = new File([blob], `diabetesflow-${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file] }).catch(() => undefined);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      await saveSettings('user-1', {
-        insulinSensitivity: Number(insulinSensitivity),
-        carbRatio: Number(carbRatio),
-        targetGlucose: Number(targetGlucose),
-      });
+      await importBackup(file);
+      await load();
+      setStatus("Respaldo importado.");
     } catch (err) {
-      console.error(err);
+      setStatus(err instanceof Error ? err.message : "No se pudo importar el respaldo.");
+    } finally {
+      e.target.value = "";
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <span className="text-[#D4AF37] font-mono text-lg tracking-widest uppercase">CALIBRANDO INSTRUMENTOS...</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-black p-6 md:p-12 font-syne text-white">
-      <div className="max-w-4xl mx-auto">
-
-        <p className="text-[#C41E3A] uppercase tracking-widest text-sm font-bold mb-2">
-          CAPÍTULO IV - CONFIGURACIÓN
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2 border-b border-shield-gray pb-5">
+        <span className="eyebrow text-viking-red">Ajustes</span>
+        <h1 className="section-title text-3xl sm:text-4xl">Parámetros</h1>
+        <p className="text-sm text-[#A3A099] max-w-2xl leading-relaxed">
+          Se guardan sólo en este dispositivo. Cada cambio modifica la dosis sugerida de inmediato.
         </p>
-
-        <h1 className="text-white text-4xl font-bold mb-4">
-          Parámetros Clínicos
-        </h1>
-
-        <p className="text-gray-400 text-lg mb-10 max-w-2xl leading-relaxed">
-          Calibrá las métricas biológicas base que gobiernan el motor de dosificación. 
-          Cualquier alteración modificará las propuestas de bolo de forma inmediata.
-        </p>
-
-        <form onSubmit={handleSave} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            <div className="bg-black border border-[#3D3D3D] p-6 rounded-none flex flex-col justify-between min-h-[320px]">
-              <div>
-                <span className="text-[#D4AF37] text-xs font-mono tracking-wider block mb-1">
-                  01 - SENSIBILIDAD
-                </span>
-                <h3 className="text-white font-bold text-lg uppercase mb-3">
-                  Factor FSI
-                </h3>
-                <p className="text-xs text-gray-500 leading-relaxed mb-6">
-                  Indica cuántos miligramos por decilitro (mg/dL) desciende tu glucemia por cada unidad de insulina rápida inyectada.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="text-[#D4AF37] text-4xl font-mono font-bold tracking-tight">
-                  {insulinSensitivity} <span className="text-xs text-gray-400 font-sans">mg/dL</span>
-                </div>
-                <input 
-                  type="number" 
-                  value={insulinSensitivity}
-                  onChange={(e) => setInsulinSensitivity(Number(e.target.value))}
-                  className="w-full bg-black border border-[#3D3D3D] p-3 rounded-none text-white font-mono text-sm focus:outline-none focus:border-[#C41E3A] transition-colors"
-                  placeholder="Ej. 50"
-                />
-              </div>
-            </div>
-
-            <div className="bg-black border border-[#3D3D3D] p-6 rounded-none flex flex-col justify-between min-h-[320px]">
-              <div>
-                <span className="text-[#D4AF37] text-xs font-mono tracking-wider block mb-1">
-                  02 - RELACIÓN CARB
-                </span>
-                <h3 className="text-white font-bold text-lg uppercase mb-3">
-                  Ratio CIR
-                </h3>
-                <p className="text-xs text-gray-500 leading-relaxed mb-6">
-                  Cuántos gramos de carbohidratos (g) es capaz de metabolizar o cubrir exactamente una sola unidad de tu insulina rápida.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="text-[#D4AF37] text-4xl font-mono font-bold tracking-tight">
-                  {carbRatio} <span className="text-xs text-gray-400 font-sans">g / u</span>
-                </div>
-                <input 
-                  type="number" 
-                  value={carbRatio}
-                  onChange={(e) => setCarbRatio(Number(e.target.value))}
-                  className="w-full bg-black border border-[#3D3D3D] p-3 rounded-none text-white font-mono text-sm focus:outline-none focus:border-[#C41E3A] transition-colors"
-                  placeholder="Ej. 15"
-                />
-              </div>
-            </div>
-
-            <div className="bg-black border border-[#3D3D3D] p-6 rounded-none flex flex-col justify-between min-h-[320px]">
-              <div>
-                <span className="text-[#D4AF37] text-xs font-mono tracking-wider block mb-1">
-                  03 - OBJETIVO
-                </span>
-                <h3 className="text-white font-bold text-lg uppercase mb-3">
-                  Target Base
-                </h3>
-                <p className="text-xs text-gray-500 leading-relaxed mb-6">
-                  El valor objetivo de glucosa en sangre al que el algoritmo intentará aproximarte al calcular el factor de corrección.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="text-[#D4AF37] text-4xl font-mono font-bold tracking-tight">
-                  {targetGlucose} <span className="text-xs text-gray-400 font-sans">mg/dL</span>
-                </div>
-                <input 
-                  type="number" 
-                  value={targetGlucose}
-                  onChange={(e) => setTargetGlucose(Number(e.target.value))}
-                  className="w-full bg-black border border-[#3D3D3D] p-3 rounded-none text-white font-mono text-sm focus:outline-none focus:border-[#C41E3A] transition-colors"
-                  placeholder="Ej. 100"
-                />
-              </div>
-            </div>
-
-          </div>
-
-          <div className="flex justify-end pt-4">
-            <button 
-              type="submit"
-              className="bg-black border border-[#C41E3A] text-[#C41E3A] px-10 py-4 uppercase font-bold tracking-widest text-xs rounded-none hover:bg-[#C41E3A] hover:text-white transition-colors duration-200"
-            >
-              Guardar Configuración
-            </button>
-          </div>
-        </form>
-
       </div>
+
+      <form onSubmit={handleSave} className="panel flex flex-col gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {FIELDS.map((f) => (
+            <div key={f.key} className="flex flex-col gap-1.5">
+              <label className="field-label" htmlFor={f.key}>
+                {f.label} <span className="normal-case tracking-normal">({f.unit})</span>
+              </label>
+              <input
+                id={f.key}
+                className="input font-mono"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step={f.step}
+                value={form[f.key]}
+                onChange={(e) => {
+                  setForm({ ...form, [f.key]: e.target.value });
+                  setStatus("");
+                }}
+              />
+              <p className="text-xs text-[#A3A099]">{f.help}</p>
+            </div>
+          ))}
+        </div>
+        <button type="submit" className="btn self-start" disabled={!valid}>Guardar parámetros</button>
+      </form>
+
+      <section className="panel flex flex-col gap-4">
+        <h2 className="eyebrow">Respaldo</h2>
+        <p className="text-sm text-[#A3A099] leading-relaxed">
+          Exportá un JSON con parámetros, alimentos propios, platos, glucemias, dosis y actividad. En el iPad, elegí «Guardar en Archivos» → iCloud Drive.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="btn-outline" onClick={handleExport}>Exportar</button>
+          <button type="button" className="btn-outline" onClick={() => fileRef.current?.click()}>Importar</button>
+          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImport} />
+        </div>
+      </section>
+
+      {status && <p className="font-mono text-sm text-helm-gold">{status}</p>}
     </div>
   );
 }

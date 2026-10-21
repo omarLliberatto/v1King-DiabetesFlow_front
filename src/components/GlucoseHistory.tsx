@@ -1,14 +1,6 @@
-export interface GlucoseLog {
-  id?: string;
-  userId?: string;
-  level: number;
-  timestamp?: string;
-  context?: string;
-}
+import type { GlucoseLog } from '@/services/api';
 
 export default function GlucoseHistory({ logs }: { logs: GlucoseLog[] }) {
-  console.log("Logs recibidos:", logs);
-
   return (
     <div className="flex flex-col gap-4">
       {!logs || logs.length === 0 ? (
@@ -17,16 +9,16 @@ export default function GlucoseHistory({ logs }: { logs: GlucoseLog[] }) {
         </div>
       ) : (
         logs.map((log, index) => (
-          <div key={index} className="flex justify-between items-center py-4 border-b border-[#3D3D3D] last:border-0">
+          <div key={log.id ?? index} className="flex justify-between items-center py-4 border-b border-[#3D3D3D] last:border-0">
             <div className="flex flex-col gap-1">
-              <span className="text-white font-mono text-sm uppercase">
+              <span className="text-saga-cream font-mono text-sm uppercase">
                 {log.timestamp ? new Date(log.timestamp).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' }) : 'FECHA DESCONOCIDA'}
               </span>
-              <span className="text-gray-500 text-sm uppercase tracking-wider">{log.context}</span>
+              <span className="field-label">{log.context}</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-white font-mono text-2xl font-bold">{log.level}</span>
-              <span className="text-gray-500 font-mono text-sm">mg/dL</span>
+              <span className="text-saga-cream font-mono text-2xl font-bold">{log.level}</span>
+              <span className="text-[#A3A099] font-mono text-sm">mg/dL</span>
             </div>
           </div>
         ))

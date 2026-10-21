@@ -1,171 +1,149 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { getFoods, createFood, getMeals, createMeal, Food, Meal, MealItem } from '@/services/api';
+import { useEffect, useMemo, useState } from "react";
+import { createFood, deleteFood, getFoods, getMeals, type Food, type Meal } from "@/services/api";
+
+const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const optional = (v: string) => (v === "" ? undefined : Number(v));
 
 export default function FoodManager() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
-  
-  const [foodName, setFoodName] = useState('');
-  const [carbsPer100g, setCarbsPer100g] = useState('0');
-  const [isCreatingFood, setIsCreatingFood] = useState(false);
+  const [query, setQuery] = useState("");
+  const [name, setName] = useState("");
+  const [per100, setPer100] = useState("");
+  const [unitGrams, setUnitGrams] = useState("");
+  const [perUnit, setPerUnit] = useState("");
 
-  const [selectedFoodId, setSelectedFoodId] = useState('');
-  const [grams, setGrams] = useState('0');
-  const [mealItems, setMealItems] = useState<MealItem[]>([]);
-  const [isCreatingMeal, setIsCreatingMeal] = useState(false);
-
-  const loadData = async () => {
-    try {
-      const [fetchedFoods, fetchedMeals] = await Promise.all([
-        getFoods(),
-        getMeals('11111111-1111-1111-1111-111111111111')
-      ]);
-      setFoods(fetchedFoods);
-      setMeals(fetchedMeals);
-    } catch (error) {
-      console.error(error);
-    }
+  const load = async () => {
+    const [f, m] = await Promise.all([getFoods(), getMeals()]);
+    setFoods(f);
+    setMeals(m);
   };
 
   useEffect(() => {
-    loadData();
+    Promise.all([getFoods(), getMeals()]).then(([f, m]) => {
+      setFoods(f);
+      setMeals(m);
+    });
   }, []);
 
-  const handleCreateFood = async (e: React.FormEvent) => {
+  const visible = useMemo(() => {
+    const q = normalize(query.trim());
+    return q ? foods.filter((f) => normalize(f.name).includes(q)) : foods;
+  }, [foods, query]);
+
+  const valid = name.trim() !== "" && (per100 !== "" || perUnit !== "");
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!foodName || !carbsPer100g) return;
-    setIsCreatingFood(true);
-    try {
-      await createFood({ name: foodName, carbsPer100g: Number(carbsPer100g) });
-      setFoodName('');
-      setCarbsPer100g('0');
-      await loadData();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsCreatingFood(false);
-    }
-  };
-
-  const handleAddMealItem = () => {
-    if (!selectedFoodId || !grams) return;
-    const food = foods.find(f => f.id === selectedFoodId || f.name === selectedFoodId);
-    setMealItems([...mealItems, { foodId: selectedFoodId, name: food?.name || selectedFoodId, grams: Number(grams) }]);
-    setGrams('0');
-  };
-
-  const handleCreateMeal = async () => {
-    if (mealItems.length === 0) return;
-    setIsCreatingMeal(true);
-    try {
-      await createMeal({ userId: '11111111-1111-1111-1111-111111111111', items: mealItems });
-      setMealItems([]);
-      await loadData();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsCreatingMeal(false);
-    }
+    if (!valid) return;
+    await createFood({
+      name: name.trim(),
+      carbsPer100g: optional(per100),
+      unitGrams: optional(unitGrams),
+      carbsPerUnit: per100 === "" ? optional(perUnit) : undefined,
+    });
+    setName("");
+    setPer100("");
+    setUnitGrams("");
+    setPerUnit("");
+    await load();
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <section className="bg-black p-6 border border-[#3D3D3D] rounded-none">
-        <h2 className="text-xl font-bold text-white uppercase tracking-widest mb-6">Catálogo de Alimentos</h2>
-        <form onSubmit={handleCreateFood} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-gray-500 text-sm uppercase tracking-wider mb-1">Nombre del Alimento</label>
-            <input
-              type="text"
-              value={foodName}
-              onChange={(e) => setFoodName(e.target.value)}
-              required
-              placeholder="Ej: Manzana"
-              className="bg-black text-white placeholder-gray-600 border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-gray-500 text-sm uppercase tracking-wider mb-1">Carbohidratos (por 100g)</label>
-            <input
-              type="number"
-              value={carbsPer100g}
-              onChange={(e) => setCarbsPer100g(e.target.value)}
-              required
-              min="0"
-              step="0.1"
-              className="bg-black text-white placeholder-gray-600 border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isCreatingFood}
-            className="mt-2 bg-black border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-all w-full py-3 px-4 rounded-none font-bold uppercase tracking-widest disabled:opacity-50"
-          >
-            {isCreatingFood ? 'GUARDANDO...' : 'CREAR INGREDIENTE'}
-          </button>
-        </form>
+    <div className="base-grid">
+      <section className="panel flex flex-col gap-4">
+        <h2 className="eyebrow">01 · Tabla de hidratos</h2>
+        <input className="input" placeholder="Buscar…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <ul className="flex flex-col border border-shield-gray max-h-[60vh] overflow-y-auto">
+          {visible.map((f) => (
+            <li key={f.id} className="flex items-start justify-between gap-3 px-3 py-2.5 border-b border-shield-gray last:border-0">
+              <div className="flex flex-col gap-0.5 flex-1">
+                <span className="text-sm">
+                  {f.name}
+                  {f.source === "propio" && <span className="ml-2 text-[10px] font-space uppercase tracking-wider text-helm-gold">propio</span>}
+                </span>
+                {f.note && <span className="text-xs text-[#A3A099]">{f.note}</span>}
+              </div>
+              <div className="flex flex-col items-end font-mono text-xs text-helm-gold whitespace-nowrap">
+                {f.carbsPer100g !== undefined && <span>{f.carbsPer100g} g/100 g</span>}
+                {f.unitGrams !== undefined && <span className="text-[#A3A099]">unid. {f.unitGrams} g</span>}
+                {f.carbsPerUnit !== undefined && <span>{f.carbsPerUnit} g/unid.</span>}
+              </div>
+              {f.source === "propio" && (
+                <button
+                  type="button"
+                  aria-label={`Borrar ${f.name}`}
+                  className="text-viking-red font-bold px-1"
+                  onClick={async () => {
+                    await deleteFood(f.id);
+                    await load();
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
 
-      <section className="bg-black p-6 border border-[#3D3D3D] rounded-none flex flex-col gap-6">
-        <h2 className="text-xl font-bold text-white uppercase tracking-widest">Armador de Platos</h2>
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
-          <div className="flex flex-col gap-1.5 flex-1 w-full">
-            <label className="text-gray-500 text-sm uppercase tracking-wider mb-1">Ingrediente</label>
-            <select
-              value={selectedFoodId}
-              onChange={(e) => setSelectedFoodId(e.target.value)}
-              className="bg-black text-white border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] w-full"
-            >
-              <option value="" disabled>Seleccione...</option>
-              {foods.map((food, i) => (
-                <option key={food.id || i} value={food.id || food.name}>{food.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5 w-full sm:w-32">
-            <label className="text-gray-500 text-sm uppercase tracking-wider mb-1">Gramos</label>
-            <input
-              type="number"
-              value={grams}
-              onChange={(e) => setGrams(e.target.value)}
-              min="1"
-              className="bg-black text-white placeholder-[#3D3D3D] border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] w-full"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleAddMealItem}
-            disabled={!selectedFoodId || !grams}
-            className="bg-black border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-all w-auto py-3 px-4 rounded-none font-bold uppercase tracking-widest disabled:opacity-50"
-          >
-            AÑADIR
-          </button>
-        </div>
+      <div className="flex flex-col gap-6">
+        <section className="panel">
+          <h2 className="eyebrow mb-4">02 · Agregar alimento propio</h2>
+          <form onSubmit={handleCreate} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="field-label" htmlFor="food-name">Nombre</label>
+              <input id="food-name" className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="field-label" htmlFor="food-per100">HC por 100 g</label>
+                <input id="food-per100" className="input" type="number" inputMode="decimal" min="0" step="any" value={per100} onChange={(e) => setPer100(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="field-label" htmlFor="food-unit">Peso de 1 unidad (g)</label>
+                <input id="food-unit" className="input" type="number" inputMode="decimal" min="0" step="any" value={unitGrams} onChange={(e) => setUnitGrams(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="field-label" htmlFor="food-perunit">O bien: HC por porción (sin peso)</label>
+              <input
+                id="food-perunit"
+                className="input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="any"
+                value={perUnit}
+                disabled={per100 !== ""}
+                onChange={(e) => setPerUnit(e.target.value)}
+              />
+            </div>
+            <button type="submit" className="btn" disabled={!valid}>Guardar alimento</button>
+          </form>
+        </section>
 
-        {mealItems.length > 0 && (
-          <div className="flex flex-col gap-4 bg-black p-4 border border-[#3D3D3D] rounded-none mt-2">
-            <h3 className="text-sm text-gray-500 uppercase tracking-widest">Ítems del plato</h3>
-            <ul className="flex flex-col gap-2">
-              {mealItems.map((item, index) => (
-                <li key={index} className="flex justify-between items-center bg-black p-3 border border-[#3D3D3D] rounded-none">
-                  <span className="text-white">{item.name}</span>
-                  <span className="font-mono text-[#D4AF37]">{item.grams}g</span>
+        <section className="panel">
+          <h2 className="eyebrow mb-4">03 · Últimos platos</h2>
+          {meals.length === 0 ? (
+            <p className="text-sm text-[#A3A099]">Todavía no registraste platos desde la calculadora.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {meals.map((m) => (
+                <li key={m.id} className="border-b border-shield-gray pb-3 last:border-0 text-sm">
+                  <div className="flex justify-between font-mono text-xs">
+                    <span>{new Date(m.timestamp).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })}</span>
+                    <span className="text-helm-gold font-bold">{m.totalCarbs.toFixed(1)} g HC</span>
+                  </div>
+                  <p className="text-[#A3A099] mt-1">{m.items.map((i) => `${i.name} ${i.amount}${i.mode === "g" ? " g" : " u"}`).join(" · ")}</p>
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              onClick={handleCreateMeal}
-              disabled={isCreatingMeal}
-              className="mt-2 bg-black border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors w-full py-3 px-4 rounded-none font-bold uppercase tracking-widest disabled:opacity-50"
-            >
-              {isCreatingMeal ? 'REGISTRANDO...' : 'REGISTRAR PLATO'}
-            </button>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

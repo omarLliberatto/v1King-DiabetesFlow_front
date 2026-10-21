@@ -15,11 +15,7 @@ export default function GlucoseLogger({ onSuccess }: { onSuccess: () => void }) 
 
     setIsSubmitting(true);
     try {
-      await createGlucoseLog({
-        userId: '11111111-1111-1111-1111-111111111111',
-        level: glucoseValue,
-        context: context
-      } as any);
+      await createGlucoseLog({ level: glucoseValue, context });
       setLevel('');
       setContext('Ayunas');
       onSuccess();
@@ -33,7 +29,7 @@ export default function GlucoseLogger({ onSuccess }: { onSuccess: () => void }) 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="glucose-level" className="eyebrow text-gray-500">
+        <label htmlFor="glucose-level" className="field-label">
           Nivel de Glucosa (mg/dL)
         </label>
         <input
@@ -50,7 +46,7 @@ export default function GlucoseLogger({ onSuccess }: { onSuccess: () => void }) 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="context" className="eyebrow text-gray-500">
+        <label htmlFor="context" className="field-label">
           Contexto
         </label>
         <select
@@ -60,6 +56,7 @@ export default function GlucoseLogger({ onSuccess }: { onSuccess: () => void }) 
           className="input"
         >
           <option value="Ayunas">Ayunas</option>
+          <option value="Antes de comer">Antes de comer</option>
           <option value="Post-prandial">Post-prandial</option>
           <option value="Antes de dormir">Antes de dormir</option>
         </select>
@@ -68,7 +65,7 @@ export default function GlucoseLogger({ onSuccess }: { onSuccess: () => void }) 
       <button
         type="submit"
         disabled={isSubmitting || !level}
-        className="bg-black text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors w-full py-3 rounded-md font-normal uppercase tracking-widest"
+        className="btn w-full"
       >
         {isSubmitting ? 'Guardando...' : 'Registrar'}
       </button>

@@ -1,175 +1,97 @@
-export interface Food {
-  id?: string;
-  name: string;
-  carbsPer100g: number;
-}
+import catalog from "@/data/foods.json";
+import { db, type Activity, type Food, type GlucoseLog, type InsulinLog, type Meal, type MealItem, type Settings } from "@/lib/db";
+import type { BolusParams } from "@/lib/bolus";
 
-export interface MealItem {
-  foodId: string;
-  grams: number;
-  name?: string;
-}
+export type { Activity, Food, GlucoseLog, InsulinLog, Meal, MealItem };
 
-export interface Meal {
-  id?: string;
-  userId: string;
-  items: MealItem[];
-  createdAt?: string;
-}
+const BACKUP_TABLES = ["settings", "foods", "meals", "glucoseLogs", "insulinLogs", "activities"] as const;
 
-export interface GlucoseLogData {
-  userId: string;
-  level: number;
-  timestamp?: string;
-  context?: string;
-}
+let catalogSynced: Promise<void> | null = null;
 
-export async function getGlucoseLogs(userId: string): Promise<GlucoseLogData[]> {
-  const response = await fetch(`http://localhost:3000/glucose`, { cache: 'no-store' });
-
-  if (response.status === 404) {
-    return [];
-  }
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Backend Error ${response.status}: ${errorText}`);
-    throw new Error('Failed to fetch glucose logs');
-  }
-
-  const json = await response.json();
-  return Array.isArray(json) ? json : (json.data || []);
-}
-
-export async function createGlucoseLog(data: GlucoseLogData): Promise<GlucoseLogData> {
-  const response = await fetch(`http://localhost:3000/glucose`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+function syncCatalog(): Promise<void> {
+  catalogSynced ??= db.transaction("rw", db.foods, async () => {
+    await db.foods.where("source").equals("planilla").delete();
+    await db.foods.bulkPut((catalog as Omit<Food, "source">[]).map((f) => ({ ...f, source: "planilla" as const })));
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Backend Error ${response.status}: ${errorText}`);
-    throw new Error('Failed to create glucose log');
-  }
-
-  return response.json();
+  return catalogSynced;
 }
 
-export interface BolusResponse {
-  bolus: number;
+export async function getSettings(): Promise<BolusParams | null> {
+  const s = await db.settings.get("main");
+  if (!s) return null;
+  return { threshold: s.threshold, target: s.target, isf: s.isf, icr: s.icr, duration: s.duration };
 }
 
-export async function calculateBolus(data: { userId: string, currentGlucose: number, targetCarbs: number }): Promise<BolusResponse> {
-  const response = await fetch(`http://localhost:3000/calculator`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to calculate bolus');
-  }
-
-  return response.json();
+export async function saveSettings(params: BolusParams): Promise<void> {
+  await db.settings.put({ id: "main", ...params } satisfies Settings);
 }
 
 export async function getFoods(): Promise<Food[]> {
-  const response = await fetch(`http://localhost:3000/foods`, { cache: 'no-store' });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch foods');
-  }
-
-  return response.json();
+  await syncCatalog();
+  return db.foods.orderBy("name").toArray();
 }
 
-export async function createFood(data: Omit<Food, 'id'>): Promise<Food> {
-  const response = await fetch(`http://localhost:3000/foods`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+export async function createFood(data: Omit<Food, "id" | "source">): Promise<void> {
+  await db.foods.add({ ...data, id: `u-${crypto.randomUUID()}`, source: "propio" });
+}
+
+export async function deleteFood(id: string): Promise<void> {
+  await db.foods.delete(id);
+}
+
+export async function getMeals(): Promise<Meal[]> {
+  return db.meals.orderBy("timestamp").reverse().limit(50).toArray();
+}
+
+export async function createMeal(items: MealItem[]): Promise<void> {
+  await db.meals.add({
+    timestamp: new Date().toISOString(),
+    items,
+    totalCarbs: items.reduce((sum, i) => sum + i.carbs, 0),
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to create food');
-  }
-
-  return response.json();
 }
 
-export async function getMeals(userId: string): Promise<Meal[]> {
-  const response = await fetch(`http://localhost:3000/meals/user/${userId}`, { cache: 'no-store' });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch meals');
-  }
-
-  return response.json();
+export async function getGlucoseLogs(): Promise<GlucoseLog[]> {
+  return db.glucoseLogs.orderBy("timestamp").reverse().limit(100).toArray();
 }
 
-export async function createMeal(data: { userId: string, items: MealItem[] }): Promise<Meal> {
-  const response = await fetch(`http://localhost:3000/meals`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+export async function createGlucoseLog(data: Omit<GlucoseLog, "id" | "timestamp">): Promise<void> {
+  await db.glucoseLogs.add({ ...data, timestamp: new Date().toISOString() });
+}
+
+export async function getLastInsulin(): Promise<InsulinLog | undefined> {
+  return db.insulinLogs.orderBy("timestamp").last();
+}
+
+export async function createInsulinLog(units: number): Promise<void> {
+  await db.insulinLogs.add({ units, timestamp: new Date().toISOString() });
+}
+
+export async function getActivities(): Promise<Activity[]> {
+  return db.activities.orderBy("createdAt").reverse().limit(50).toArray();
+}
+
+export async function createActivity(data: Omit<Activity, "id" | "createdAt">): Promise<void> {
+  await db.activities.add({ ...data, createdAt: new Date().toISOString() });
+}
+
+export async function exportBackup(): Promise<Blob> {
+  const data: Record<string, unknown[]> = {};
+  for (const name of BACKUP_TABLES) {
+    data[name] = name === "foods" ? await db.foods.where("source").equals("propio").toArray() : await db.table(name).toArray();
+  }
+  return new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), data }, null, 2)], {
+    type: "application/json",
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to create meal');
-  }
-
-  return response.json();
 }
 
-export interface Activity {
-  id?: string;
-  userId: string;
-  duration_min?: number;
-  steps?: number;
-  createdAt?: string;
-}
-
-export async function getActivities(userId: string): Promise<Activity[]> {
-  const response = await fetch(`http://localhost:3000/activities?userId=${userId}`, { cache: 'no-store' });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Backend Error ${response.status}: ${errorText}`);
-    throw new Error('Failed to fetch activities');
-  }
-
-  return response.json();
-}
-
-export async function createActivity(data: Activity): Promise<Activity> {
-  const response = await fetch(`http://localhost:3000/activities`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+export async function importBackup(file: File): Promise<void> {
+  const parsed = JSON.parse(await file.text()) as { version: number; data: Record<string, unknown[]> };
+  if (parsed.version !== 1 || typeof parsed.data !== "object") throw new Error("Archivo de respaldo inválido");
+  await db.transaction("rw", BACKUP_TABLES.map((n) => db.table(n)), async () => {
+    for (const name of BACKUP_TABLES) {
+      const rows = parsed.data[name];
+      if (Array.isArray(rows)) await db.table(name).bulkPut(rows);
+    }
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Backend Error ${response.status}: ${errorText}`);
-    throw new Error('Failed to create activity');
-  }
-
-  return response.json();
 }

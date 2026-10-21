@@ -1,28 +1,16 @@
-import MealTracker from '@/components/FoodManager'; // Ajustá el nombre de tu componente si es distinto
+import FoodManager from "@/components/FoodManager";
 
 export default function FoodPage() {
   return (
-    <div className="min-h-screen bg-black p-6 md:p-12 font-syne">
-      <div className="max-w-4xl mx-auto">
-        {/* Eyebrow */}
-        <p className="text-[#C41E3A] uppercase tracking-widest text-sm font-bold mb-2">
-          CAPÍTULO III - ALIMENTACIÓN
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2 border-b border-shield-gray pb-5">
+        <span className="eyebrow text-viking-red">Alimentos</span>
+        <h1 className="section-title text-3xl sm:text-4xl">Tabla de hidratos</h1>
+        <p className="text-sm text-[#A3A099] max-w-2xl leading-relaxed">
+          Valores de referencia cada 100 g. Los del envase de cada producto son los definitivos.
         </p>
-
-        {/* Título Principal */}
-        <h1 className="text-white text-4xl font-bold mb-4">
-          Registro de Ingesta
-        </h1>
-
-        {/* Bajada / Deck */}
-        <p className="text-[#3D3D3D] text-lg mb-10 max-w-2xl leading-relaxed">
-          Documentá tu carga de carbohidratos. Estos datos alimentan el motor 
-          de cálculo para mantener tu glucemia en rango objetivo.
-        </p>
-
-        {/* Inyección del componente de comidas */}
-        <MealTracker />
       </div>
+      <FoodManager />
     </div>
   );
 }

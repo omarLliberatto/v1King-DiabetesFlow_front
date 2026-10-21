@@ -1,98 +1,175 @@
 "use client";
 
-import { useState } from 'react';
-import { calculateBolus } from '@/services/api';
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { calculateBolus, type BolusParams } from "@/lib/bolus";
+import PlateBuilder from "@/components/PlateBuilder";
+import {
+  createGlucoseLog,
+  createInsulinLog,
+  createMeal,
+  getLastInsulin,
+  getSettings,
+  type MealItem,
+} from "@/services/api";
+
+const num = (v: string) => (v === "" ? 0 : Number(v) || 0);
+
+function NumberField({
+  id,
+  label,
+  value,
+  onChange,
+  step = "1",
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  step?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="field-label" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        className="input"
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
 
 export default function BolusCalculator() {
-  const [currentGlucose, setCurrentGlucose] = useState<number | ''>('');
-  const [carbs, setCarbs] = useState<number | ''>('');
-  const [bolusResult, setBolusResult] = useState<number | null>(null);
-  const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [params, setParams] = useState<BolusParams | null | undefined>(undefined);
+  const [glucose, setGlucose] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [lastDose, setLastDose] = useState("0");
+  const [hours, setHours] = useState("");
+  const [plate, setPlate] = useState<MealItem[]>([]);
+  const [showPlate, setShowPlate] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      currentGlucose === '' ||
-      carbs === '' ||
-      currentGlucose === null ||
-      carbs === null ||
-      isNaN(currentGlucose as number) ||
-      isNaN(carbs as number)
-    ) return;
+  useEffect(() => {
+    getSettings().then(setParams);
+    getLastInsulin().then((last) => {
+      if (!last) return;
+      setLastDose(String(last.units));
+      setHours(((Date.now() - new Date(last.timestamp).getTime()) / 3_600_000).toFixed(1));
+    });
+  }, []);
 
-    setIsCalculating(true);
-    try {
-      const data = await calculateBolus({
-        userId: '11111111-1111-1111-1111-111111111111',
-        currentGlucose: currentGlucose as number,
-        targetCarbs: carbs as number,
-      });
-      setBolusResult(data.bolus);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsCalculating(false);
-    }
+  const result = useMemo(
+    () =>
+      params
+        ? calculateBolus(
+            { currentGlucose: num(glucose), carbs: num(carbs), lastDose: num(lastDose), hoursSinceDose: hours === "" ? 24 : num(hours) },
+            params,
+          )
+        : null,
+    [params, glucose, carbs, lastDose, hours],
+  );
+
+  const register = async () => {
+    if (!result) return;
+    if (glucose) await createGlucoseLog({ level: num(glucose), context: "Antes de comer" });
+    if (plate.length > 0) await createMeal(plate);
+    if (result.pen > 0) await createInsulinLog(result.pen);
+    setSaved(true);
   };
 
+  if (params === undefined) return null;
+
+  if (params === null) {
+    return (
+      <div className="panel flex flex-col gap-4 border-l-4 border-l-viking-red">
+        <p className="eyebrow text-viking-red">Falta configurar</p>
+        <p className="text-sm leading-relaxed">
+          Cargá tus parámetros (umbral de corrección, objetivo, FSI, ICR y duración de la insulina) antes de calcular. Se guardan en este dispositivo.
+        </p>
+        <Link href="/settings/" className="btn self-start">Ir a Ajustes</Link>
+      </div>
+    );
+  }
+
+  const low = glucose !== "" && num(glucose) < 70;
+
   return (
-    <div className="flex flex-col gap-6 bg-black p-6 border border-[#3D3D3D] rounded-none">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="current-glucose" className="eyebrow text-gray-500">
-            Glucemia Actual (mg/dL)
-          </label>
-          <input
-            id="current-glucose"
-            type="number"
-            value={currentGlucose}
-            onChange={(e) => setCurrentGlucose(e.target.value === '' ? '' : Number(e.target.value))}
-            required
-            min="20"
-            max="600"
-            className="bg-black text-white border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors w-full"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="carbs" className="eyebrow text-gray-500">
-            Carbohidratos a Ingerir (g)
-          </label>
-          <input
+    <div className="base-grid">
+      <section className="panel flex flex-col gap-5">
+        <h2 className="eyebrow">01 · Datos</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberField id="glucose" label="Glucemia (mg/dL)" value={glucose} onChange={setGlucose} />
+          <NumberField
             id="carbs"
-            type="number"
+            label="Hidratos (g)"
             value={carbs}
-            onChange={(e) => setCarbs(e.target.value === '' ? '' : Number(e.target.value))}
-            required
-            min="0"
-            className="bg-black text-white border border-[#3D3D3D] rounded-none px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors w-full"
+            step="0.1"
+            onChange={(v) => {
+              setCarbs(v);
+              setPlate([]);
+            }}
           />
+          <NumberField id="last-dose" label="Última dosis (U)" value={lastDose} step="0.5" onChange={setLastDose} />
+          <NumberField id="hours" label="Horas desde dosis" value={hours} step="0.25" onChange={setHours} />
         </div>
-
-        <button
-          type="submit"
-          disabled={isCalculating || currentGlucose === '' || carbs === ''}
-          className="mt-2 bg-black text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors w-full py-3 rounded-none font-bold uppercase tracking-widest disabled:opacity-50"
-        >
-          {isCalculating ? 'CALCULANDO...' : 'CALCULAR DOSIS'}
+        <button type="button" className="btn-outline" onClick={() => setShowPlate((s) => !s)}>
+          {showPlate ? "Ocultar plato" : "Armar plato"}
         </button>
-      </form>
+        {showPlate && (
+          <PlateBuilder
+            items={plate}
+            onChange={(items) => {
+              setPlate(items);
+              setCarbs(items.length > 0 ? items.reduce((s, i) => s + i.carbs, 0).toFixed(1) : "");
+            }}
+          />
+        )}
+      </section>
 
-      {bolusResult !== null && (
-        <div className="mt-4 bg-black border border-[#3D3D3D] p-6 rounded-none flex flex-col gap-2">
-          <span className="text-[#D4AF37] text-xs font-bold tracking-widest uppercase">01 - RECOMENDACIONES</span>
-          <div className="flex justify-between items-center mt-2">
-            <h3 className="text-white font-bold text-lg">DOSIS RECOMENDADA</h3>
-            <p className="text-[#D4AF37] text-5xl font-mono font-bold">
-              {bolusResult} <span className="text-2xl text-gray-500">U</span>
-            </p>
+      <section className="flex flex-col gap-4">
+        {low && (
+          <div className="bg-viking-red text-saga-cream p-4 font-space font-bold text-sm uppercase tracking-wider">
+            Glucemia por debajo de 70: tratá la hipoglucemia antes de calcular.
           </div>
-          <p className="text-gray-500 text-sm mt-4 leading-relaxed">
-            Esta es una dosis matemática sugerida basada en tus factores de sensibilidad e ICR. <br/>
-            Siempre revisa tu contexto general antes de aplicar la inyección.
+        )}
+        <div className="panel flex flex-col gap-4">
+          <h2 className="eyebrow">02 · Dosis sugerida</h2>
+          <div className="flex items-baseline gap-3">
+            <span className="font-mono font-bold text-6xl leading-none text-saga-cream">{result!.total.toFixed(1)}</span>
+            <span className="font-mono text-xl text-[#A3A099]">U</span>
+          </div>
+          <p className="font-space text-sm">
+            Lapicera (pasos de 1 U): <span className="font-bold text-helm-gold">{result!.pen} U</span>
           </p>
+          <dl className="grid grid-cols-3 border-t border-shield-gray pt-4 text-xs">
+            <div>
+              <dt className="field-label">Hidratos</dt>
+              <dd className="font-mono text-lg font-bold">{result!.meal.toFixed(1)}</dd>
+            </div>
+            <div>
+              <dt className="field-label">Corrección</dt>
+              <dd className="font-mono text-lg font-bold">+{result!.correction.toFixed(1)}</dd>
+            </div>
+            <div>
+              <dt className="field-label">IOB</dt>
+              <dd className="font-mono text-lg font-bold">−{result!.iob.toFixed(1)}</dd>
+            </div>
+          </dl>
+          <button type="button" className="btn" onClick={register} disabled={saved || (!glucose && result!.pen === 0)}>
+            {saved ? "Registrado" : `Registrar ${result!.pen} U aplicadas`}
+          </button>
         </div>
-      )}
+        <p className="text-xs text-[#A3A099] leading-relaxed">
+          Corrige sólo desde {params.threshold} mg/dL y hasta {params.target}. La insulina activa (IOB) decae en forma lineal en{" "}
+          {params.duration} h y se descuenta sólo de la corrección, nunca de los hidratos.
+        </p>
+      </section>
     </div>
   );
 }

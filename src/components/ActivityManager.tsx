@@ -11,7 +11,7 @@ export default function ActivityManager() {
 
   const loadData = async () => {
     try {
-      const data = await getActivities('11111111-1111-1111-1111-111111111111');
+      const data = await getActivities();
       setActivities(data);
     } catch (error) {
       console.error(error);
@@ -19,7 +19,7 @@ export default function ActivityManager() {
   };
 
   useEffect(() => {
-    loadData();
+    getActivities().then(setActivities).catch(console.error);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +29,6 @@ export default function ActivityManager() {
     setIsCreating(true);
     try {
       await createActivity({
-        userId: '11111111-1111-1111-1111-111111111111',
         duration_min: durationMin !== '' ? Number(durationMin) : undefined,
         steps: steps !== '' ? Number(steps) : undefined,
       });
@@ -92,7 +91,7 @@ export default function ActivityManager() {
                   {act.steps ? `${act.steps} pasos` : ''}
                 </span>
                 <span className="font-mono text-viking-red text-sm">
-                  {act.createdAt ? new Date(act.createdAt).toLocaleDateString() : 'Hoy'}
+                  {act.createdAt ? new Date(act.createdAt).toLocaleDateString('es-AR') : 'Hoy'}
                 </span>
               </li>
             ))}
