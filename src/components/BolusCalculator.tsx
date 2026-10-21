@@ -53,6 +53,7 @@ export default function BolusCalculator() {
   const [hours, setHours] = useState("");
   const [plate, setPlate] = useState<MealItem[]>([]);
   const [showPlate, setShowPlate] = useState(false);
+  const [applied, setApplied] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -77,9 +78,10 @@ export default function BolusCalculator() {
 
   const register = async () => {
     if (!result) return;
+    const units = applied === "" ? result.pen : num(applied);
     if (glucose) await createGlucoseLog({ level: num(glucose), context: "Antes de comer" });
     if (plate.length > 0) await createMeal(plate);
-    if (result.pen > 0) await createInsulinLog(result.pen);
+    if (units > 0) await createInsulinLog(units);
     setSaved(true);
   };
 
@@ -98,6 +100,7 @@ export default function BolusCalculator() {
   }
 
   const low = glucose !== "" && num(glucose) < 70;
+  const units = applied === "" ? result!.pen : num(applied);
 
   return (
     <div className="base-grid">
@@ -161,8 +164,24 @@ export default function BolusCalculator() {
               <dd className="font-mono text-lg font-bold">−{result!.iob.toFixed(1)}</dd>
             </div>
           </dl>
-          <button type="button" className="btn" onClick={register} disabled={saved || (!glucose && result!.pen === 0)}>
-            {saved ? "Registrado" : `Registrar ${result!.pen} U aplicadas`}
+          <div className="flex flex-col gap-1.5 border-t border-shield-gray pt-4">
+            <label className="field-label" htmlFor="applied">Unidades aplicadas</label>
+            <input
+              id="applied"
+              className="input font-mono"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="1"
+              placeholder={String(result!.pen)}
+              value={applied}
+              disabled={saved}
+              onChange={(e) => setApplied(e.target.value)}
+            />
+            <p className="text-xs text-[#A3A099]">Vacío = la dosis sugerida para la lapicera. Cambialo si aplicaste otra cantidad.</p>
+          </div>
+          <button type="button" className="btn" onClick={register} disabled={saved || (!glucose && units === 0)}>
+            {saved ? `Registrado: ${units} U` : `Registrar ${units} U aplicadas`}
           </button>
         </div>
         <p className="text-xs text-[#A3A099] leading-relaxed">
