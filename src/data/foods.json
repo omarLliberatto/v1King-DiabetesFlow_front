@@ -65,5 +65,6 @@
   { "id": "p-morcilla-criolla", "name": "Morcilla criolla", "carbsPer100g": 3, "note": "Estimado (rango 1 a 5)." },
   { "id": "p-morcilla-dulce", "name": "Morcilla dulce", "carbsPer100g": 15, "note": "Estimado (rango 10 a 20). Lleva pasas, nueces o azúcar." },
   { "id": "p-chorizo-cerdo", "name": "Chorizo de cerdo", "carbsPer100g": 1, "note": "Estimado (rango 0 a 2). Los industriales pueden tener algo más." },
-  { "id": "p-chinchulines", "name": "Chinchulines", "carbsPer100g": 0, "note": "Estimado (0 a 1), despreciable." }
+  { "id": "p-chinchulines", "name": "Chinchulines", "carbsPer100g": 0, "note": "Estimado (0 a 1), despreciable." },
+  { "id": "p-tuco-casero", "name": "Tuco casero (porción para 100 g de fideos)", "carbsPerUnit": 15, "note": "Estimado (rango 12 a 18): 200 g de tomate cubeteado, cebolla, morrón y ajo. No incluye los fideos." }
 ]
