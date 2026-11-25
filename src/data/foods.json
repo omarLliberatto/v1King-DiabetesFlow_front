@@ -66,5 +66,7 @@
   { "id": "p-morcilla-dulce", "name": "Morcilla dulce", "carbsPer100g": 15, "note": "Estimado (rango 10 a 20). Lleva pasas, nueces o azúcar." },
   { "id": "p-chorizo-cerdo", "name": "Chorizo de cerdo", "carbsPer100g": 1, "note": "Estimado (rango 0 a 2). Los industriales pueden tener algo más." },
   { "id": "p-chinchulines", "name": "Chinchulines", "carbsPer100g": 0, "note": "Estimado (0 a 1), despreciable." },
-  { "id": "p-tuco-casero", "name": "Tuco casero (porción para 100 g de fideos)", "carbsPerUnit": 15, "note": "Estimado (rango 12 a 18): 200 g de tomate cubeteado, cebolla, morrón y ajo. No incluye los fideos." }
+  { "id": "p-tuco-casero", "name": "Tuco casero (porción para 100 g de fideos)", "carbsPerUnit": 15, "note": "Estimado (rango 12 a 18): 200 g de tomate cubeteado, cebolla, morrón y ajo. No incluye los fideos." },
+  { "id": "p-pizza-mozzarella", "name": "Pizza casera con mozzarella (1/4)", "carbsPerUnit": 45, "note": "Estimado. Pizza entera con 180 g de premezcla Pureza, 1 cucharada de azúcar y salsa casera: ≈ 180 g HC." },
+  { "id": "p-pizza-sin-mozzarella", "name": "Pizza casera sin mozzarella (1/4)", "carbsPerUnit": 44, "note": "Estimado. Pizza entera con 180 g de premezcla Pureza, 1 cucharada de azúcar y salsa casera: ≈ 176 g HC." }
 ]
