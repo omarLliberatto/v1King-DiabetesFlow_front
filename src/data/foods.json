@@ -60,5 +60,6 @@
   { "id": "p-plato-desayuno-traviata", "name": "Plato: café con leche y 6 Traviatas", "carbsPerUnit": 29, "note": "Estimado a partir del registro de comidas." },
   { "id": "p-plato-merienda-pan-integral", "name": "Plato: café con leche y 2 rodajas de pan integral", "carbsPerUnit": 46, "note": "Estimado a partir del registro de comidas." },
   { "id": "p-cafe-helado", "name": "Café helado casero con edulcorante", "carbsPerUnit": 0, "note": "Sin azúcar." },
-  { "id": "p-soda", "name": "Soda / agua saborizada sin azúcar", "carbsPerUnit": 0, "note": "Sin azúcar." }
+  { "id": "p-soda", "name": "Soda / agua saborizada sin azúcar", "carbsPerUnit": 0, "note": "Sin azúcar." },
+  { "id": "p-lasagna-carne", "name": "Lasagna de carne", "carbsPer100g": 13, "note": "Estimado sobre receta clásica (rango 12 a 18). Pesar la porción ya horneada." }
 ]
