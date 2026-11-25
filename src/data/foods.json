@@ -61,5 +61,9 @@
   { "id": "p-plato-merienda-pan-integral", "name": "Plato: café con leche y 2 rodajas de pan integral", "carbsPerUnit": 46, "note": "Estimado a partir del registro de comidas." },
   { "id": "p-cafe-helado", "name": "Café helado casero con edulcorante", "carbsPerUnit": 0, "note": "Sin azúcar." },
   { "id": "p-soda", "name": "Soda / agua saborizada sin azúcar", "carbsPerUnit": 0, "note": "Sin azúcar." },
-  { "id": "p-lasagna-carne", "name": "Lasagna de carne", "carbsPer100g": 13, "note": "Estimado sobre receta clásica (rango 12 a 18). Pesar la porción ya horneada." }
+  { "id": "p-lasagna-carne", "name": "Lasagna de carne", "carbsPer100g": 13, "note": "Estimado sobre receta clásica (rango 12 a 18). Pesar la porción ya horneada." },
+  { "id": "p-morcilla-criolla", "name": "Morcilla criolla", "carbsPer100g": 3, "note": "Estimado (rango 1 a 5)." },
+  { "id": "p-morcilla-dulce", "name": "Morcilla dulce", "carbsPer100g": 15, "note": "Estimado (rango 10 a 20). Lleva pasas, nueces o azúcar." },
+  { "id": "p-chorizo-cerdo", "name": "Chorizo de cerdo", "carbsPer100g": 1, "note": "Estimado (rango 0 a 2). Los industriales pueden tener algo más." },
+  { "id": "p-chinchulines", "name": "Chinchulines", "carbsPer100g": 0, "note": "Estimado (0 a 1), despreciable." }
 ]
