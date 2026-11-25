@@ -13,6 +13,7 @@ permissions: {}
 jobs:
   consulta:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - run: >
           curl --fail -sS --retry 3 --retry-delay 30 --retry-all-errors
