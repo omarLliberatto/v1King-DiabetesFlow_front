@@ -1,0 +1,24 @@
+name: Mantener activo Supabase
+
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/keepalive.yml]
+
+permissions: {}
+
+jobs:
+  consulta:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl --fail -sS --retry 3 --retry-delay 30 --retry-all-errors
+          -o /dev/null -w 'HTTP %{http_code}\n'
+          -H "apikey: $KEY"
+          "$URL/rest/v1/records?select=id&limit=1"
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
